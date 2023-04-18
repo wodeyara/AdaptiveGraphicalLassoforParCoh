@@ -1,4 +1,8 @@
 %%
+% for comments please see "estDataRes.m"
+% this code tests the effect of using a random structural connectome
+% instead of the real SC on estimation of the precision and the
+% penalization parameters. 
 
 allLambdas = fliplr([.2,.175,.15,.125, .1, .075, .05, .025, .01,.005,.001]);           
 allLambdasOut = fliplr([.2,.175,.15,.125, .1, .075, .05, .025, .01,.005,.001]);       

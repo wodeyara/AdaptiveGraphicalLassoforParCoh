@@ -1,5 +1,12 @@
 function [network,networkUnthr] = estImagCoh(data)
-% takes data and uses it to define coherence
+% takes data and uses it to define imaginary coherence
+% ==========================================
+% INPUT
+% data: ensembles x sources x time%
+% ==========================================
+% OUTPUT
+% network: thresholded imaginary coherence network based on the bootstrapped confidence intervals
+% networkUnThr: unthresholded imaginary coherence
 
 data = permute(data,[1,3,2]);
 data = reshape(data,size(data,1)*size(data,2),size(data,3));
@@ -9,11 +16,13 @@ parfor i = 1:1000
     dataCov = cov(data(randi(size(data,1),1,size(data,1)),:));
     csd = real2Complex(dataCov,0);
     csd = csd(1:size(data,2)/2,1:size(data,2)/2);
+    % estimate imaginary coherence
     imagcoh(i,:,:) = abs(imag(csd)./(sqrt(diag(csd)'*diag(csd))));
 end
 
 meanImag = squeeze(mean(imagcoh,1));
-%fisher transform
+
+% fisher transform to get the confidence limits
 imagcoh = .5 * log((1+imagcoh)./(1-imagcoh));
 stdImag = reshape(std(reshape(imagcoh,1000,size(imagcoh,2)*size(imagcoh,2)),[],1), ... 
                     size(data,2)/2,size(data,2)/2);

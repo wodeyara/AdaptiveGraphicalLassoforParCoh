@@ -1,13 +1,19 @@
 clear all
+
+% build a positive definite complex-valued precision matrix: 
 S = [6, -.9*exp(1i*pi/4), -.5*exp(1i*pi/8),.55*exp(1i*pi/6), 0;
     -.9*exp(-1i*pi/8), 1.01, 0, 0, -.64*exp(1i*pi/8) ;
     -.5*exp(-1i*pi/8), 0, .6, 0, 0;
     .55*exp(-1i*pi/8), 0, 0, 1, 0;
     0,       -.64*exp(1i*pi/8), 0,0,1.5];
 S = .5*(S+S');
-S_aug = [S,zeros(5);zeros(5),conj(S)];
-realPrec = real2Complex(S_aug,1);
 
+% generate the augmented complex valued precision
+S_aug = [S,zeros(5);zeros(5),conj(S)];
+% convert to the real-valued complex precision
+realPrec = real2Complex(S_aug,1); % flag 1 means the augmented matrix is complex-valued
+
+% write out binarized prior matrix
 origNetwork = [1,1,1,1,0;
                1,1,0,0,1;
                1,0,1,0,0;
@@ -15,6 +21,7 @@ origNetwork = [1,1,1,1,0;
                0,1,0,0,1];
 origNetwork = origNetwork - eye(5);
 
+% build a false network while ensuring that number of edges is the same
 [fakeNetwork] = randomizer_bin_und(origNetwork,1);
 numEdgesToAdd = sum(sum(triu(fakeNetwork.*origNetwork,1))); 
 fakeNetwork = (fakeNetwork - fakeNetwork.*origNetwork); % remove SC edges if any
@@ -27,9 +34,11 @@ fakeNetwork(tmp1LocsToUse) = 1;
 fakeNetwork = double((triu(fakeNetwork,1) + triu(fakeNetwork,1)') > 0);
 fakeNetwork = fakeNetwork + eye(length(fakeNetwork));
 
+% network for the graphical lasso:
 GforFit =[(eye(length(origNetwork)) +double(origNetwork)), ... 
     double(origNetwork) ; double(origNetwork), (eye(length(origNetwork)) +double(origNetwork))];
-           
+     
+% penalization parameters
 lambdasIn = fliplr([.9,.8,.7,.6,.5,.4,.3,.2,.175,.15,.125, .1, .075, .05, .025, .01,.005,.001]);           
 allLambdasOut = fliplr([.9,.8,.7,.6,.5,.4,.3,.2,.175,.15,.125, .1, .075, .05, .025, .01,.005,.001]); %           
 samps = 240;
@@ -37,18 +46,21 @@ samps = 240;
 %%
 parfor i = 1:200
     tic
-%     noiseAmt = trace(realCov) /(2*length(realCov)* 10 ^ (SNR/10));
-%     noiseAmt = noiseAmt * eye(size(realCov));
+    %simulate data from precision:
     data = mvnrnd(zeros(length(realPrec),1),(realPrec)\eye(size(realPrec)),samps)';
     
+    % separate data into ensembles
     reconDataReal = permute(reshape(data', 4,samps/4, size(data,1)),[1,3,2]);
 
+    % estimate precision using adaptive graphical lasso with correct network
     [networkPrecComp, penInComp(i), penOutComp(i)] = estBestPenalizationQUIC(... 
         reconDataReal, origNetwork,lambdasIn,allLambdasOut, 0);
     
+    % estimate precision using adaptive graphical lasso with fake network
     [networkPrecCompFake, penInCompFake(i), penOutCompFake(i)] = estBestPenalizationQUIC(... 
         reconDataReal, fakeNetwork,lambdasIn,allLambdasOut, 0);    
     
+    % check recovery under each approach above:
     corrsNet(i) =(corr((realPrec(triu(GforFit>0,1)|triu(networkPrecComp>0,1)) + 1e-4) ...
                      ,(networkPrecComp(triu(GforFit>0,1)|triu(networkPrecComp>0,1))+ 1e-4)));
     newG1 = reduce2nNetwork(abs(networkPrecComp)>0);
@@ -65,7 +77,7 @@ parfor i = 1:200
     edgesNotInNetworkFake(i) =  sum(sum(newG1.*triu(~origNetwork,1)));
     toc
 end
-%%
+%% PLOTTING
 sensitivity = edgesInNetwork./sum(sum(triu(origNetwork,1)));
 falseDiscRate = edgesNotInNetwork./ (edgesInNetwork + edgesNotInNetwork);
 figure
@@ -82,7 +94,7 @@ subplot(224)
 hist([penInComp',penOutComp'])
 legend({'Inside','Outside'})
 title('Penalization Used')
-%% 
+%%  PLOTTING
 figure
 subplot(221)
 histogram(edgesInNetworkFake)

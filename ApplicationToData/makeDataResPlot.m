@@ -1,3 +1,5 @@
+%% This code plots the results from estDataRes
+
 % We will use only those frequencies when the SC was considered useful.
 % First how many frequencies showed this (as a ratio of the frequency bands
 % they appear in):

@@ -1,6 +1,6 @@
 function [network,networkUnthr,penalizationIn, thresholdOut,minInd,allDevsReturn] = estBestPenalization_L2(data,SC,allLambdas, flagForReal)
     % this function takes data (ensembles x sources x samples) and estimates a
-    % model using L2 norm inverse for each ensemble and estimates (cross validated) deviance on the
+    % model using L2 norm inverse to get precision for each ensemble and estimates (cross validated) deviance on the
     % other ensembles. Using this method it searches for the ideal
     % penalizations (lambda1) and threshold to apply to the data, and also the ideal epoch to use to
     % represent the network represented by the data. It does an upper half

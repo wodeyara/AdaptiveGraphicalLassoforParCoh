@@ -1,4 +1,5 @@
 % estimate correlation only over edges found in network
+% see line 16 for most useful code in file
 
 for k = 1:3
     filesToLoad = {'fakeAndRealNetworks_SNR15_pen10_AGL.mat',...
@@ -10,7 +11,9 @@ for i = 1:200
      Q = squeeze(allOrigPrec(ee,:,:));
      networkPrecComp = squeeze(allNetworksTrue(i,:,:));             
 
-    
+    % most useful piece of code: this extracts only the correct edges and then
+    % estimates correlation between original precision and the estimated
+    % precision
      corrsOnlySCedges(i) =corr(Q(triu(GforFit>0,1)), networkPrecComp(triu(GforFit>0,1)));
                  
                  

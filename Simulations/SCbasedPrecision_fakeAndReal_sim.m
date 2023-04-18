@@ -1,25 +1,40 @@
-load('C:\Users\wodey\Documents\GitHub\SC_FC_MEG\simulations\dataNeededForSim_MEG.mat');
-% clear all
+% This is code for a simulation to see how recovery of the precision matrix
+% changes when we give a fake network as the prior to the AGL which is used
+% to estimate the precision. This simulation works using the SC. Currently
+% the estimation of the precision under the real SC is commented out. 
+%%
+clear all
 
-% load('/home/awodeyar/ForGit_MEGpaper/simulations/dataNeededForSim_MEG.mat')
+% Load necessary data (SC)
+load('..\util\dataNeededForSim_MEG.mat');
+
+% Generate true precision
 samps = 480;
 run genCov_CMVN_SC.m
 
+% Define network for adaptive graphical lasso
 GforFit =[(eye(length(origNetwork)) +double(origNetwork)), ... 
     double(origNetwork) ; double(origNetwork), (eye(length(origNetwork)) +double(origNetwork))];
 
-
+% Define lambda values for penalization
 allLambdas = fliplr([.6,.5,.4,.3,.2,.175,.15,.125, .1, .075, .05, .025, .01]);           
 allLambdasOut = fliplr([.6,.5,.4,.3,.2,.175,.15,.125, .1, .075, .05, .025, .01]);            
 
+% Set signal-to-noise ratio and counter variable
 SNR = 25; cnter = 1;
+% Loop over number of samples
 for samps = [480,2400]
+    % loop over repetitions
 for ee = 1:200
     tic
+    % Generate new precision
     run genCov_CMVN_SC.m
+    
+    % Shuffle columns of original network to generate a fake network
     shuffCol = randperm(length(origNetwork));
     fakeNetwork = origNetwork(shuffCol,shuffCol);
 
+    % Generate data and add noise
     allOrigNetworks(ee,cnter,:,:) = Q;
     data = mvnrnd(zeros(length(Q),1),(Q)\eye(size(Q)),samps)';
     noiseAmt = trace(covMat) /(length(covMat)* 10 ^ (SNR/10));
@@ -29,16 +44,20 @@ for ee = 1:200
     datareshaped = datareshaped + noises; %noiseAmt * randn(size(datareshaped));
     
     datareshaped = datareshaped*(1/mean(abs(datareshaped(:)))); % normalize data
-        
+    
+%      for true network being used as the prior:
 %     [networkPrecComp, penInCompTrue(ee,cnter), penOutCompTrue(ee,cnter),~,allDevsTrue(ee,cnter,:,:)] = estBestPenalizationQUIC(... 
 %         datareshaped, origNetwork,allLambdas,allLambdasOut, 0);
+
     % if desired to run fake networks do the following:
     [networkPrecComp, penInComp(ee,cnter), penOutComp(ee,cnter),~,allDevs(ee,cnter,:,:)] = estBestPenalizationQUIC(... 
         datareshaped, fakeNetwork,allLambdas,allLambdasOut, 0);
     
+    % check recovery of precision:
     corrsNet(ee,cnter) =(corr((Q(triu(GforFit>0,1)|triu(networkPrecComp~=0,1))) ...
                      ,(networkPrecComp(triu(GforFit>0,1)|triu(networkPrecComp~=0,1)))));
                  
+    % limit correlation only to the SC edges
     corrsOnlySCedges(ee,cnter) =corr(Q(triu(GforFit>0,1)), networkPrecComp(triu(GforFit>0,1)));    
     
     allNetworks(ee,cnter,:,:) = networkPrecComp;             
@@ -46,6 +65,8 @@ for ee = 1:200
                  
 %     edgesInNetwork(ee,cnter) = sum(sum(newG1.*triu(origNetwork,1)));
 %     edgesNotInNetwork(ee,cnter) =  sum(sum(newG1.*triu(~origNetwork,1)));
+
+%   check the edges in fake network and outside fake network:
     edgesIn(ee,cnter) = sum(sum(newG1.*triu(fakeNetwork,1)));
     edgesOut(ee,cnter) = sum(sum(newG1.*triu(double(~fakeNetwork),1)));
 
@@ -59,6 +80,8 @@ for ee = 1:200
 end
 cnter = cnter+1;
 end
+
+%% PLOTTING
 % sensitivity = edgesInNetwork./sum(sum(triu(origNetwork,1)));
 % falseDiscRate = edgesNotInNetwork./ (edgesInNetwork + edgesNotInNetwork);
 % 

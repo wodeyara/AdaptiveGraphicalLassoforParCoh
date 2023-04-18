@@ -6,6 +6,7 @@ function [allS, weightingMatrix]  = getDipOrientations(L, data, regParam, oldWei
 % data = channels x time
 % regParam is the percentile used for inversemodel (line 13)
 % Ani Wodeyar
+
     if nargin<4
         oldWeightingMatFlag =0;
         oldWeightingMat =[];
