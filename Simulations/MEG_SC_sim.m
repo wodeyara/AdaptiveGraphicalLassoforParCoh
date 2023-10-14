@@ -9,13 +9,15 @@ clear all
 % load('C:\Users\wodey\Documents\GitHub\SC_FC_MEG\simulations\dataNeededForSim_MEG.mat');
 % get lead field data
 load('.\util\dataNeededForSim_MEG.mat')
-powerForWeightedL2 = .5;
+powerForWeightedL2 = .5; %weighting the L2 norm inverse solution
 %following helps set up some vars
 
-run allInverses_MEG_dip.m
-samps = 480;
+run allInverses_MEG_dip.m % generate the inverse solution for the lead field (loaded from the dataNeededForSim_MEG file)
+samps = 480; % number of samples for the 
 
 % generate true precision
+% this will be done again within the loop below but this first run helps
+% establish variables needed for the next few steps.
 run genCov_CMVN_SC.m
 % % 
 % the network for adaptive graphical lasso
@@ -54,11 +56,12 @@ for ee = 1:200
     noises = mvnrnd(zeros(length(noiseAmtCov),1),(noiseAmtCov),samps);
     noisesComp = transpose(noises(:,1:114) +1j*noises(:,115:228));
     
+    % create complex valued data to add noise and forward model it to the scalp.
     compData = data(1:length(useAreas),:) +1j*data(length(useAreas)+1:2*length(useAreas),:);
     % forward model data to the MEG:
-    chanCompData = L*(compData+noisesComp);
-    tmp = cat(1, real(chanCompData), imag(chanCompData));
-    tmp = cov(tmp');
+    chanCompData = L*(compData+noisesComp); % adding complex valued noise and forward modeling
+    tmp = cat(1, real(chanCompData), imag(chanCompData)); % getting real-valued isomorphism back
+    tmp = cov(tmp'); % true covariance of the real-valued observation
     
     % define source data:
     sourceData = squeeze(allOpInv(penUsed,:,:))'*(chanCompData);%+noisesComp
@@ -67,7 +70,6 @@ for ee = 1:200
     
     sourceDataReal = sourceDataReal*(1/mean(abs(sourceDataReal(:)))); % normalize data
     datareshaped = permute(reshape(sourceDataReal', 4,samps/4, size(sourceDataReal,1)),[1,3,2]);
-    datareshaped = datareshaped; %noiseAmt * randn(size(datareshaped));
     
     % apply adaptive graphical lasso
     [networkPrecCompTrue, penInCompTrue(ee,cnter), penOutCompTrue(ee,cnter),~,allDevsReturnTrue(ee,cnter,:,:)] = estBestPenalizationQUIC(... 
